@@ -14,8 +14,8 @@ from causallearn.search.FCMBased.ANM.ANM import ANM
 from causallearn.utils.GraphUtils import GraphUtils
 from causallearn.utils.cit import fisherz, chisq
 from sklearn.cluster import KMeans
-from membership_functions import *
-from dataloaders import *
+from .membership_functions import *
+from .dataloaders import *
 from sklearn.preprocessing import LabelEncoder
 
 from weka.core.converters import Loader, load_any_file
@@ -26,7 +26,7 @@ from weka.core.dataset import create_instances_from_matrices
 
 
 class mbcd:
-    def __init__(self, causal_matrix=None, causal_dag=None, rule_base=None, linguictic_rule_base=None,
+    def __init__(self, causal_matrix=None, causal_dag=None, mbcd_list=[], rule_base=None, linguictic_rule_base=None,
                  fuzzy_sets_parameters=None, node_name_list=None, cg_save_path='test.png'):
         '''
         :param rule_base: numpy matrix, R*D, R: #rules, D:#variables
@@ -34,6 +34,7 @@ class mbcd:
         '''
         self.causal_matrix = causal_matrix
         self.causal_dag = causal_dag
+        self.mbcd_list = []
         self.rule_base = rule_base
         self.linguistic_rule_base = linguictic_rule_base
         self.fuzzy_sets_parameters = fuzzy_sets_parameters
@@ -115,26 +116,6 @@ class mbcd:
                     B[i, j] = 1
         return B
 
-    def find_mb(self, causal_matrix, x=-1) -> list:
-        # 获取矩阵的维度
-        num_var = causal_matrix.shape[0]
-        # 1. 获取X的所有父节点
-        parents_of_X = [i for i in range(num_var) if causal_matrix[i, x] != 0]
-
-        # 2. 获取X的所有子节点
-        children_of_X = [i for i in range(num_var) if causal_matrix[x, i] != 0]
-
-        # 3. 获取X的所有子节点的其他父节点
-        spouses_of_X = []
-        for child in children_of_X:
-            spouses_of_X.extend([i for i in range(num_var) if causal_matrix[i, child] != 0 and i != x])
-
-        # 合并所有的组件并去除重复的以及目标变量，即最后一个变量
-        markov_blanket = set(parents_of_X + children_of_X + spouses_of_X)
-        markov_blanket.discard(num_var - 1)
-
-        return list(markov_blanket)
-
     def find_mbcd(self, causal_matrix, x=-1) -> list:
         num_var = causal_matrix.shape[0]
         mbcd = []
@@ -149,7 +130,7 @@ class mbcd:
                 final_mbcd = list(mbcd_set.discard(num_var - 1))
             else:
                 final_mbcd = list(mbcd_set)
-            return final_mbcd
+        self.mbcd_list = final_mbcd
 
     def show_causal_graph(self, causal_dag):
         """
@@ -232,6 +213,55 @@ class mbcd:
         self.rule_base = numeric_rule_base
         self.linguistic_rule_base = linguistic_rule_base
 
+    def furia_rule_generation(self, x, y):
+        furia = Classifier(classname="weka.classifiers.rules.FURIA")
+        furia.build_classifier(x)
+        return furia
+
+    def fit(self, data, cd='pc_anm', rg='wm'):
+        '''
+        Train a fuzzy system using MABLAR
+        :param data:the input data, N*D, where N is #samples, D is #variables. The last column of data is the target variable.
+        the label of the target variable should be integer, not string.
+        :param cd: Select the causal discovery (cd) method. Options: 'pc_anm' and 'ica', default pc and anm.
+        :param rg: Select the rule generation method. default the WM algorithm.
+        :return:
+        '''
+        if cd == 'pc_anm':
+            self.fit_pc_anm(data)
+        if cd == 'ica':
+            self.fit_ica(data)
+
+        x = data[:, :-1]
+        y = data[:, -1]
+        self.find_mbcd(self.causal_matrix)
+
+        if not self.mbcd_list:
+            print('No mb')
+            sys.exit(0)  # 成功退出
+        else:
+            mbcd_x = x[:, self.mbcd_list]
+
+        if rg == 'wm':
+            self.rule_generation_wm(mbcd_x, y)
+        if rg == 'furia':
+            jvm.start(packages=True)
+            train_features_list = [self.node_name_list[i] for i in self.mbcd_list]
+            train_features_list.append(self.node_name_list[-1])
+            # arff_data = create_instances_from_matrices(mb_x, y, name="generated from matrices",
+            #                                            cols_x=train_features_list[:-1], col_y=train_features_list[-1])
+            arff_data = create_instances_from_matrices(mbcd_x, y, name="generated from matrices")
+            arff_data.class_is_last()
+            if arff_data.class_attribute.is_numeric:
+                numeric_to_nominal = Filter(classname="weka.filters.unsupervised.attribute.NumericToNominal",
+                                            options=["-R", "last"])
+                numeric_to_nominal.inputformat(arff_data)
+                arff_data = numeric_to_nominal.filter(arff_data)
+            furia = Classifier(classname="weka.classifiers.rules.FURIA")
+            furia.build_classifier(arff_data)
+            self.rule_base = furia
+            self.linguistic_rule_base = furia
+
     def predict_wm(self, x) -> int:
         '''
         scfs_strategy
@@ -271,53 +301,3 @@ class mbcd:
         # predict_y = self.rule_base[max_row_index, -1]
 
         return predict_y
-
-
-    def furia_rule_generation(self, x, y):
-        furia = Classifier(classname="weka.classifiers.rules.FURIA")
-        furia.build_classifier(x)
-        return furia
-
-    def fit(self, data, cd='pc_anm', rg='wm'):
-        '''
-        Train a fuzzy system using MABLAR
-        :param data:the input data, N*D, where N is #samples, D is #variables. The last column of data is the target variable.
-        the label of the target variable should be integer, not string.
-        :param cd: Select the causal discovery (cd) method. Options: 'pc_anm' and 'ica', default pc and anm.
-        :param rg: Select the rule generation method. default the WM algorithm.
-        :return:
-        '''
-        if cd == 'pc_anm':
-            self.fit_pc_anm(data)
-        if cd == 'ica':
-            self.fit_ica(data)
-
-        x = data[:, :-1]
-        y = data[:, -1]
-        mbcd_list = self.find_mbcd(self.causal_matrix)
-
-        if not mbcd_list:
-            print('No mb')
-            sys.exit(0)  # 成功退出
-        else:
-            mbcd_x = x[:, mbcd_list]
-
-        if rg == 'wm':
-            self.rule_generation_wm(mbcd_x, y)
-        if rg == 'furia':
-            jvm.start(packages=True)
-            train_features_list = [self.node_name_list[i] for i in mbcd_list]
-            train_features_list.append(self.node_name_list[-1])
-            # arff_data = create_instances_from_matrices(mb_x, y, name="generated from matrices",
-            #                                            cols_x=train_features_list[:-1], col_y=train_features_list[-1])
-            arff_data = create_instances_from_matrices(mbcd_x, y, name="generated from matrices")
-            arff_data.class_is_last()
-            if arff_data.class_attribute.is_numeric:
-                numeric_to_nominal = Filter(classname="weka.filters.unsupervised.attribute.NumericToNominal",
-                                            options=["-R", "last"])
-                numeric_to_nominal.inputformat(arff_data)
-                arff_data = numeric_to_nominal.filter(arff_data)
-            furia = Classifier(classname="weka.classifiers.rules.FURIA")
-            furia.build_classifier(arff_data)
-            self.rule_base = furia
-            self.linguistic_rule_base = furia
