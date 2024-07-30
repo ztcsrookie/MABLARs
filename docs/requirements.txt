@@ -1,2 +1,7 @@
 sphinx
 sphinx-rtd-theme
+numpy
+matplotlib
+causal-learn
+scikit-learn
+python-weka-wrapper3
