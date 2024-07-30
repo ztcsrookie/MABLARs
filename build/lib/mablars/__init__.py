@@ -1,4 +1,4 @@
-__version__ = '0.1.4'
+__version__ = '0.1.7'
 __author__ = 'Te Zhang@LUCID'
 
 from .membership_functions import *
