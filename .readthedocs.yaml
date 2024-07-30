@@ -1,11 +1,11 @@
 version: 2
 
-# 构建文档使用的工具
+#  the tool for the documents
 sphinx:
-  configuration: docs/source/conf.py  # 指定 Sphinx 配置文件的路径
+  configuration: docs/source/conf.py  # the path of Sphinx config files
 
-# 构建文档使用的 Python 版本
+# the python version of the documents
 python:
-  version: 3.8  # 或其他你使用的 Python 版本
+  version: 3.8  # the python version
   install:
-    - requirements: docs/requirements.txt  # 指定安装依赖的 requirements 文件
+    - requirements: docs/requirements.txt  # requirements files
