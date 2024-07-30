@@ -1,11 +1,12 @@
 version: 2
 
-#  the tool for the documents
-sphinx:
-  configuration: docs/source/conf.py  # the path of Sphinx config files
+build:
+  os: ubuntu-20.04
 
-# the python version of the documents
 python:
-  version: 3.8  # the python version
+  version: 3.8
   install:
-    - requirements: docs/requirements.txt  # requirements files
+    - requirements: docs/requirements.txt
+
+sphinx:
+  configuration: docs/conf.py
