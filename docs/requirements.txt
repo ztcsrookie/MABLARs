@@ -1,0 +1,8 @@
+sphinx
+sphinx.ext.autodoc
+
+numpy
+matplotlib
+causal-learn
+scikit-learn
+python-weka-wrapper3
