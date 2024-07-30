@@ -24,3 +24,9 @@ To use mablars, we could install it using [pip](https://pypi.org/project/mablars
 ```
 pip install mablars
 ```
+
+# HTML Documentation:
+
+You can find detailed documentation on a browsable site in the following directory:
+
+`mablars/docs/_build/html/index.html`
