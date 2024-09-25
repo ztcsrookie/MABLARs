@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: mablars
-Version: 0.1.7
+Version: 0.1.9
 Summary: This is a python package of mablars
 Home-page: https://github.com/ztcsrookie/mablars
 Author: Te Zhang
@@ -42,3 +42,9 @@ To use mablars, we could install it using [pip](https://pypi.org/project/mablars
 ```
 pip install mablars
 ```
+
+# HTML Documentation:
+
+You can find detailed documentation on a browsable site in the following directory:
+
+`mablars/docs/_build/html/index.html`

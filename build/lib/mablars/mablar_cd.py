@@ -250,6 +250,8 @@ class mbcd:
             self.fit_pc_anm(data)
         if cd == 'ica':
             self.fit_ica(data)
+        if cd == 'Nothing':
+            self.causal_dag = self.create_dag_from_matrix(self.causal_matrix, self.node_name_list)
 
         x = data[:, :-1]
         y = data[:, -1]
@@ -320,3 +322,18 @@ class mbcd:
         # predict_y = self.rule_base[max_row_index, -1]
 
         return predict_y
+
+    def show_rule_base(self):
+        # print([self.node_name_list[i] for i in self.mb_list])
+        # for key, value in self.linguistic_rule_base.items():
+        #     print(f"{key}: {value}")
+
+        mb_variable_list = [self.node_name_list[i] for i in self.mb_list]
+
+        for conditions, output in self.linguistic_rule_base.items():
+            # 构建前件
+            conditions_str = " AND ".join([f"{var} is {cond}" for var, cond in zip(mb_variable_list, conditions)])
+            # 构建整条规则
+            rule_str = f"If {conditions_str}, then class is {output}"
+            # 打印规则
+            print(rule_str)
